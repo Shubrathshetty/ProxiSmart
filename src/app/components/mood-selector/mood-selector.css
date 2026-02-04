@@ -1,0 +1,50 @@
+.mood-container {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.mood-grid {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mood-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mood-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+}
+
+.mood-card.selected {
+  border: 2px solid #007bff;
+  background-color: #f0f7ff;
+}
+
+.mood-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mood-label {
+  font-weight: 600;
+  color: #555;
+}

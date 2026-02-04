@@ -16,28 +16,28 @@ export class MoodService {
         {
             id: 'work',
             label: 'Work',
-            icon: 'briefcase',
+            icon: '💼',
             types: ['cafe', 'library'],
             keywords: ['coworking']
         },
         {
             id: 'date',
             label: 'Date',
-            icon: 'heart',
+            icon: '❤️',
             types: ['restaurant', 'bar', 'night_club'],
             keywords: ['romantic', 'lounge']
         },
         {
             id: 'quick_bite',
             label: 'Quick Bite',
-            icon: 'fast-food',
+            icon: '🍔',
             types: ['meal_takeaway', 'bakery', 'cafe'],
             keywords: ['fast food', 'snack']
         },
         {
             id: 'budget',
             label: 'Budget',
-            icon: 'wallet',
+            icon: '💸',
             types: ['restaurant', 'meal_takeaway'],
             keywords: ['cheap', 'inexpensive']
         }

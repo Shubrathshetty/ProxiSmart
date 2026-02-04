@@ -1,1 +1,38 @@
-<p>filters works!</p>
+<div class="filters-container">
+    <!-- Open Now -->
+    <label class="filter-item checkbox-label">
+        <input type="checkbox" [(ngModel)]="filters.openNow" (change)="onFilterChange()">
+        <span class="label-text">Open Now</span>
+    </label>
+
+    <!-- Min Rating -->
+    <div class="filter-item">
+        <span class="label-text">Min Rating:</span>
+        <select [(ngModel)]="filters.minRating" (change)="onFilterChange()">
+            <option [value]="3.0">3.0+</option>
+            <option [value]="3.5">3.5+</option>
+            <option [value]="4.0">4.0+</option>
+            <option [value]="4.5">4.5+</option>
+        </select>
+    </div>
+
+    <!-- Price Level (Conditional) -->
+    <div class="filter-item" *ngIf="showPriceFilter">
+        <span class="label-text">Price:</span>
+        <select [(ngModel)]="filters.priceLevel" (change)="onFilterChange()">
+            <option [ngValue]="null">Any</option>
+            <option [value]="1">$</option>
+            <option [value]="2">$$</option>
+            <option [value]="3">$$$</option>
+        </select>
+    </div>
+
+    <!-- Sort By -->
+    <div class="filter-item">
+        <span class="label-text">Sort By:</span>
+        <select [(ngModel)]="filters.sortBy" (change)="onFilterChange()">
+            <option value="distance">Distance</option>
+            <option value="rating">Rating</option>
+        </select>
+    </div>
+</div>

@@ -1,1 +1,10 @@
-<p>mood-selector works!</p>
+<div class="mood-container">
+    <h2 class="section-title">What's your mood?</h2>
+    <div class="mood-grid">
+        <div *ngFor="let mood of moods" class="mood-card" [class.selected]="mood.id === selectedMoodId"
+            (click)="selectMood(mood)">
+            <div class="mood-icon">{{ mood.icon }}</div>
+            <span class="mood-label">{{ mood.label }}</span>
+        </div>
+    </div>
+</div>
