@@ -1,1 +1,21 @@
-<p>place-card works!</p>
+<div class="place-card" (click)="openInMaps()">
+    <div class="card-header">
+        <h3 class="place-name">{{ place.name }}</h3>
+        <span class="distance" *ngIf="place.distance">{{ place.distance | number:'1.1-1' }} km</span>
+    </div>
+
+    <div class="card-details">
+        <div class="rating-row">
+            <span class="rating" *ngIf="place.rating">⭐ {{ place.rating }}</span>
+            <span class="price" *ngIf="priceString">{{ priceString }}</span>
+        </div>
+
+        <div class="status-row">
+            <span class="open-status" [class.open]="place.isOpen" [class.closed]="place.isOpen === false">
+                {{ place.isOpen ? 'Open Now' : (place.isOpen === false ? 'Closed' : '') }}
+            </span>
+        </div>
+
+        <p class="address">{{ place.vicinity }}</p>
+    </div>
+</div>

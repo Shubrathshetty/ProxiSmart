@@ -1,1 +1,18 @@
-<p>place-list works!</p>
+<div class="list-container">
+    <div *ngIf="isLoading" class="state-message">
+        <div class="spinner"></div>
+        <p>Finding the best places for you...</p>
+    </div>
+
+    <div *ngIf="!isLoading && error" class="state-message error">
+        <p>⚠️ {{ error }}</p>
+    </div>
+
+    <div *ngIf="!isLoading && !error && hasSearched && places.length === 0" class="state-message">
+        <p>No places found matching your criteria. Try adjusting filters.</p>
+    </div>
+
+    <div *ngIf="!isLoading && places.length > 0" class="results-list">
+        <app-place-card *ngFor="let place of places" [place]="place"></app-place-card>
+    </div>
+</div>

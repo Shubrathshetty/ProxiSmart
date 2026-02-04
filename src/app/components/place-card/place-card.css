@@ -1,0 +1,77 @@
+.place-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.place-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-left-color: #007bff;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.place-name {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.distance {
+    font-size: 0.85rem;
+    color: #888;
+    white-space: nowrap;
+}
+
+.card-details {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.rating-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.rating {
+    color: #f5a623;
+    font-weight: 500;
+}
+
+.price {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.status-row {
+    margin-bottom: 0.25rem;
+}
+
+.open-status.open {
+    color: #28a745;
+}
+
+.open-status.closed {
+    color: #dc3545;
+}
+
+.address {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
