@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MoodSelector } from './components/mood-selector/mood-selector';
 import { Filters, FilterState } from './components/filters/filters';
@@ -24,39 +24,37 @@ export class App implements OnInit {
 
   isLoading: boolean = false;
   searchError: string | null = null;
-  isInitializing: boolean = true;
+  isInitializing: boolean = false;  // Show app immediately
 
   showPriceFilter: boolean = false;
   currentFilters: FilterState = {
     openNow: false,
-    minRating: 3.5,
+    minRating: 0,  // No rating filter by default
     priceLevel: null,
     sortBy: 'distance'
   };
 
   constructor(
     private locationService: LocationService,
-    private placesService: PlacesService
+    private placesService: PlacesService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit() {
     this.initializeApp();
   }
 
-  private async initializeApp() {
-    try {
-      // Wait for Google Maps API to load
-      await (window as any).googleMapsReady;
-
-      // Then get location
-      const coords = await this.locationService.getCurrentPosition();
-      this.userLocation = coords;
-    } catch (err) {
-      console.error('Initialization error', err);
-      this.locationError = 'Could not get your location. Please enable location services.';
-    } finally {
-      this.isInitializing = false;
-    }
+  private initializeApp() {
+    // Just try to get location in the background - don't block UI
+    this.locationService.getCurrentPosition()
+      .then(coords => {
+        this.userLocation = coords;
+      })
+      .catch(err => {
+        console.error('Location error', err);
+        this.locationError = 'Could not get your location. Please use manual location below.';
+      });
   }
 
   onMoodSelected(mood: Mood) {
@@ -78,14 +76,18 @@ export class App implements OnInit {
 
     this.placesService.searchNearby(this.userLocation, mood)
       .then(results => {
-        this.allPlaces = results;
-        this.applyFilters();
-        this.isLoading = false;
+        this.ngZone.run(() => {
+          this.allPlaces = results;
+          this.applyFilters();
+          this.isLoading = false;
+        });
       })
       .catch(err => {
-        console.error(err);
-        this.searchError = 'Failed to find places. Please check the API Key or try again.';
-        this.isLoading = false;
+        this.ngZone.run(() => {
+          console.error(err);
+          this.searchError = 'Failed to find places. Please check the API Key or try again.';
+          this.isLoading = false;
+        });
       });
   }
 
@@ -97,13 +99,22 @@ export class App implements OnInit {
   applyFilters() {
     let temp = [...this.allPlaces];
 
+    console.log('Filtering places:', this.allPlaces.length, 'Filter:', this.currentFilters);
+
+    // Debug: Check a few places
+    if (this.allPlaces.length > 0) {
+      console.log('Sample place:', this.allPlaces[0]);
+    }
+
     if (this.currentFilters.openNow) {
       temp = temp.filter(p => p.isOpen === true);
     }
 
-    if (this.currentFilters.minRating) {
+    if (this.currentFilters.minRating && this.currentFilters.minRating > 0) {
       temp = temp.filter(p => (p.rating || 0) >= this.currentFilters.minRating);
     }
+
+    // ... rest of filters ...
 
     if (this.currentFilters.priceLevel !== null && this.showPriceFilter) {
       temp = temp.filter(p => p.priceLevel === this.currentFilters.priceLevel);
@@ -116,6 +127,8 @@ export class App implements OnInit {
     }
 
     this.displayedPlaces = temp;
+    console.log('Displayed places:', this.displayedPlaces.length);
+    this.cdr.detectChanges();  // Force UI update
   }
 
   setManualLocation(latStr: string, lngStr: string) {

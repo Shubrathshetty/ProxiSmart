@@ -9,6 +9,7 @@
     <div class="filter-item">
         <span class="label-text">Min Rating:</span>
         <select [(ngModel)]="filters.minRating" (change)="onFilterChange()">
+            <option [value]="0">Any</option>
             <option [value]="3.0">3.0+</option>
             <option [value]="3.5">3.5+</option>
             <option [value]="4.0">4.0+</option>

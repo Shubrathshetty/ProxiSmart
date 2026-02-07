@@ -22,7 +22,7 @@ export class Filters {
 
   filters: FilterState = {
     openNow: false,
-    minRating: 3.5,
+    minRating: 0,  // No rating filter by default
     priceLevel: null,
     sortBy: 'distance'
   };

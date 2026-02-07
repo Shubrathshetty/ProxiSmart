@@ -34,7 +34,7 @@ export class LocationService {
                 (error) => {
                     reject(error);
                 },
-                { timeout: 10000, enableHighAccuracy: false, maximumAge: 300000 }
+                { timeout: 3000, enableHighAccuracy: false, maximumAge: 300000 }
             );
         });
     }

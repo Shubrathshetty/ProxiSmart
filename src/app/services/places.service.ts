@@ -1,5 +1,5 @@
 /// <reference types="google.maps" />
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { Mood } from './mood.service';
 
 export interface PlaceResult {
@@ -20,7 +20,7 @@ export interface PlaceResult {
 export class PlacesService {
     private service: google.maps.places.PlacesService | null = null;
 
-    constructor() { }
+    constructor(private ngZone: NgZone) { }
 
     private initService(): void {
         if (!this.service && typeof google !== 'undefined') {
@@ -48,29 +48,31 @@ export class PlacesService {
             }
 
             this.service!.nearbySearch(request, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                    const mappedResults: PlaceResult[] = results.map((place: google.maps.places.PlaceResult) => {
-                        const placeLoc = {
-                            lat: place.geometry!.location!.lat(),
-                            lng: place.geometry!.location!.lng()
-                        };
-                        return {
-                            placeId: place.place_id!,
-                            name: place.name!,
-                            location: placeLoc,
-                            rating: place.rating,
-                            isOpen: place.opening_hours?.isOpen ? place.opening_hours.isOpen() : undefined,
-                            priceLevel: place.price_level,
-                            vicinity: place.vicinity,
-                            distance: this.calculateDistance(location.lat, location.lng, placeLoc.lat, placeLoc.lng)
-                        };
-                    });
-                    resolve(mappedResults);
-                } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                    resolve([]);
-                } else {
-                    reject(status);
-                }
+                this.ngZone.run(() => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+                        const mappedResults: PlaceResult[] = results.map((place: google.maps.places.PlaceResult) => {
+                            const placeLoc = {
+                                lat: place.geometry!.location!.lat(),
+                                lng: place.geometry!.location!.lng()
+                            };
+                            return {
+                                placeId: place.place_id!,
+                                name: place.name!,
+                                location: placeLoc,
+                                rating: place.rating,
+                                isOpen: place.opening_hours?.isOpen ? place.opening_hours.isOpen() : (place.opening_hours as any)?.open_now,
+                                priceLevel: place.price_level,
+                                vicinity: place.vicinity,
+                                distance: this.calculateDistance(location.lat, location.lng, placeLoc.lat, placeLoc.lng)
+                            };
+                        });
+                        resolve(mappedResults);
+                    } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+                        resolve([]);
+                    } else {
+                        reject(status);
+                    }
+                });
             });
         });
     }
