@@ -1,0 +1,110 @@
+.itinerary-container {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.title {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 1rem;
+    font-family: 'Outfit', sans-serif;
+}
+
+.itinerary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.share-btn {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.share-btn:hover {
+    background: #f0f0f0;
+    transform: translateY(-1px);
+}
+
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.step-card {
+    background: white;
+    border-left: 4px solid #007bff;
+    padding: 1rem;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.step-badge {
+    color: #007bff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.step-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.step-description {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.step-places {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    /* Hide scrollbar but allow swipe */
+    scrollbar-width: thin;
+}
+
+app-place-card {
+    min-width: 280px;
+    flex-shrink: 0;
+}
+
+.mini-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #ddd;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.step-error {
+    color: #dc3545;
+    font-size: 0.9rem;
+}
+
+.step-empty {
+    font-style: italic;
+    color: #777;
+}

@@ -15,31 +15,45 @@ export class MoodService {
     private moods: Mood[] = [
         {
             id: 'work',
-            label: 'Work',
+            label: 'Productive',
             icon: '💼',
-            types: ['cafe', 'library'],
-            keywords: ['coworking']
+            types: ['library', 'cafe', 'book_store'],
+            keywords: ['quiet', 'wifi', 'study', 'coworking']
         },
         {
             id: 'date',
-            label: 'Date',
+            label: 'Date Night',
             icon: '❤️',
-            types: ['restaurant', 'bar', 'night_club'],
-            keywords: ['romantic', 'lounge']
+            types: ['restaurant', 'bar', 'movie_theater', 'park'],
+            keywords: ['romantic', 'candlelight', 'view', 'cozy']
+        },
+        {
+            id: 'chill',
+            label: 'Chill / Relax',
+            icon: '☕',
+            types: ['cafe', 'park', 'spa', 'art_gallery'],
+            keywords: ['peaceful', 'scenic', 'garden', 'lounge']
+        },
+        {
+            id: 'party',
+            label: 'Party',
+            icon: '🎉',
+            types: ['night_club', 'bar', 'casino'],
+            keywords: ['music', 'dance', 'cocktail', 'lively']
+        },
+        {
+            id: 'adventure',
+            label: 'Adventure',
+            icon: '🏕️',
+            types: ['campground', 'park', 'tourist_attraction', 'amusement_park'],
+            keywords: ['hiking', 'viewpoint', 'trail', 'outdoor']
         },
         {
             id: 'quick_bite',
             label: 'Quick Bite',
             icon: '🍔',
-            types: ['meal_takeaway', 'bakery', 'cafe'],
-            keywords: ['fast food', 'snack']
-        },
-        {
-            id: 'budget',
-            label: 'Budget',
-            icon: '💸',
-            types: ['restaurant', 'meal_takeaway'],
-            keywords: ['cheap', 'inexpensive']
+            types: ['meal_takeaway', 'bakery', 'restaurant'],
+            keywords: ['fast food', 'snack', 'street food']
         }
     ];
 

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Mood, MoodService } from '../../services/mood.service';
 
@@ -12,7 +12,7 @@ import { Mood, MoodService } from '../../services/mood.service';
 export class MoodSelector {
   moods: Mood[] = [];
   @Output() moodSelected = new EventEmitter<Mood>();
-  selectedMoodId: string | null = null;
+  @Input() selectedMoodId: string | null = null;
 
   constructor(private moodService: MoodService) {
     this.moods = this.moodService.getMoods();

@@ -52,7 +52,7 @@ export class PlacesService {
         });
     }
 
-    searchNearby(location: { lat: number, lng: number }, mood: Mood): Promise<PlaceResult[]> {
+    searchByType(location: { lat: number, lng: number }, type: string, keyword?: string): Promise<PlaceResult[]> {
         return new Promise((resolve, reject) => {
             if (typeof google === 'undefined') {
                 reject('Google Maps API not loaded');
@@ -62,12 +62,12 @@ export class PlacesService {
 
             const request: google.maps.places.PlaceSearchRequest = {
                 location: new google.maps.LatLng(location.lat, location.lng),
-                radius: 5000, // 5km radius
-                type: mood.types[0],
+                radius: 15000,
+                type: type,
             };
 
-            if (mood.keywords && mood.keywords.length > 0) {
-                request.keyword = mood.keywords.join(' OR ');
+            if (keyword) {
+                request.keyword = keyword;
             }
 
             this.service!.nearbySearch(request, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
@@ -98,6 +98,13 @@ export class PlacesService {
                 });
             });
         });
+    }
+
+    searchNearby(location: { lat: number, lng: number }, mood: Mood): Promise<PlaceResult[]> {
+        // Reuse searchByType for backward compatibility or simple mood search
+        // We use the first type and all keywords joined by OR
+        const keyword = mood.keywords ? mood.keywords.join(' OR ') : undefined;
+        return this.searchByType(location, mood.types[0], keyword);
     }
 
     private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {

@@ -6,11 +6,15 @@ import { PlaceList } from './components/place-list/place-list';
 import { LocationService } from './services/location.service';
 import { PlacesService, PlaceResult } from './services/places.service';
 import { Mood } from './services/mood.service';
+import { PlannerService, PlannerContext, ItineraryPlan, PlanStep } from './services/planner.service';
+import { Itinerary, StepResult } from './components/itinerary/itinerary';
+
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, MoodSelector, Filters, PlaceList],
+  imports: [CommonModule, FormsModule, MoodSelector, Filters, PlaceList, Itinerary],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -26,6 +30,16 @@ export class App implements OnInit {
   searchError: string | null = null;
   isInitializing: boolean = false;  // Show app immediately
 
+  // Planner State
+  currentPlan: ItineraryPlan | null = null;
+  itinerarySteps: StepResult[] = [];
+  rawStepResults: Map<number, PlaceResult[]> = new Map(); // Store raw for filtering
+
+  context: PlannerContext = {
+    timeOfDay: 'evening', // Default for now, could detect
+    company: 'date'       // Default
+  };
+
   showPriceFilter: boolean = false;
   currentFilters: FilterState = {
     openNow: false,
@@ -37,6 +51,7 @@ export class App implements OnInit {
   constructor(
     private locationService: LocationService,
     private placesService: PlacesService,
+    private plannerService: PlannerService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef
   ) { }
@@ -44,6 +59,8 @@ export class App implements OnInit {
   ngOnInit() {
     this.initializeApp();
   }
+
+  debugGeo: string = '';
 
   private initializeApp() {
     // Just try to get location in the background - don't block UI
@@ -54,6 +71,8 @@ export class App implements OnInit {
           lng: coords.longitude,
           accuracy: coords.accuracy
         };
+        this.debugGeo = `Lat: ${coords.latitude}, Lng: ${coords.longitude}, Acc: ${coords.accuracy}m`;
+        console.log('Location success:', this.debugGeo);
       })
       .catch(err => {
         console.error('Location error', err);
@@ -69,50 +88,75 @@ export class App implements OnInit {
 
     this.selectedMood = mood;
     this.showPriceFilter = mood.id === 'budget';
-    this.isLoading = true;
-    this.searchError = null;
-    this.allPlaces = [];
-    this.displayedPlaces = [];
 
-    // Reset filters to default on new search
-    this.currentFilters = {
-      openNow: false,
-      minRating: 0,
-      priceLevel: null,
-      sortBy: 'distance'
-    };
+    // Generate Plan
+    this.currentPlan = this.plannerService.generatePlan(mood, this.context);
+    console.log('Generated Plan:', this.currentPlan);
 
-    // Also reset the child component via a hack or just rely on manual update?
-    // We can't easily reset child component state without ViewChild.
-    // For now, let's just update our local state and hope user adjusts if needed.
-    // Ideally we should bind [filters] input to child.
+    // Reset Steps
+    this.itinerarySteps = this.currentPlan.steps.map(step => ({
+      step,
+      places: [],
+      isLoading: true,
+      error: undefined
+    }));
+    this.rawStepResults.clear();
+    this.cdr.detectChanges();
 
-    this.placesService.searchNearby(this.userLocation, mood)
-      .then(results => {
-        this.ngZone.run(() => {
-          console.log('Results received:', results.length);
-          // Force next tick to ensure clean render
-          setTimeout(() => {
-            this.allPlaces = results;
-            this.applyFilters();
-            this.isLoading = false;
+    // Fetch places for each step
+    this.currentPlan.steps.forEach((step, index) => {
+      this.placesService.searchByType(this.userLocation!, step.searchType, step.searchKeyword)
+        .then(results => {
+          this.ngZone.run(() => {
+            this.rawStepResults.set(index, results);
+            this.filterStep(index);
+          });
+        })
+        .catch(err => {
+          this.ngZone.run(() => {
+            console.error(`Error for step ${index}`, err);
+            this.itinerarySteps[index].isLoading = false;
+            this.itinerarySteps[index].error = 'Could not find places.';
             this.cdr.detectChanges();
-          }, 0);
+          });
         });
-      })
-      .catch(err => {
-        this.ngZone.run(() => {
-          console.error(err);
-          this.searchError = 'Failed to find places. Please check the API Key or try again.';
-          this.isLoading = false;
-          this.cdr.detectChanges();
-        });
-      });
+    });
+  }
+
+  filterItinerary() {
+    this.itinerarySteps.forEach((_, index) => this.filterStep(index));
+  }
+
+  filterStep(index: number) {
+    const raw = this.rawStepResults.get(index) || [];
+    let temp = [...raw];
+
+    if (this.currentFilters.openNow) {
+      temp = temp.filter(p => p.isOpen === true);
+    }
+    if (this.currentFilters.minRating && this.currentFilters.minRating > 0) {
+      temp = temp.filter(p => (p.rating || 0) >= this.currentFilters.minRating);
+    }
+    if (this.currentFilters.priceLevel !== null && this.showPriceFilter) {
+      temp = temp.filter(p => p.priceLevel === this.currentFilters.priceLevel);
+    }
+    // Sort logic 
+    if (this.currentFilters.sortBy === 'distance') {
+      temp.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+    } else if (this.currentFilters.sortBy === 'rating') {
+      temp.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    }
+
+    this.itinerarySteps[index].places = temp;
+    this.itinerarySteps[index].isLoading = false;
+    this.cdr.detectChanges();
   }
 
   onFiltersChanged(filters: FilterState) {
     this.currentFilters = filters;
-    this.applyFilters();
+    if (this.currentPlan) {
+      this.filterItinerary();
+    }
   }
 
   applyFilters() {
@@ -168,6 +212,11 @@ export class App implements OnInit {
           accuracy: coords.accuracy
         };
         this.isLoading = false;
+
+        // Auto-refresh results if mood is selected
+        if (this.selectedMood) {
+          this.onMoodSelected(this.selectedMood);
+        }
       })
       .catch(err => {
         console.error('Location retry error', err);
@@ -190,6 +239,11 @@ export class App implements OnInit {
           accuracy: 0 // Manual/Geocoded is considered precise
         };
         this.isLoading = false;
+
+        // Auto-refresh results if mood is selected
+        if (this.selectedMood) {
+          this.onMoodSelected(this.selectedMood);
+        }
       })
       .catch(err => {
         console.error('Geocoding error', err);

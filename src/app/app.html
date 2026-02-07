@@ -9,13 +9,13 @@
 
     <div class="location-status" *ngIf="locationError && !userLocation">
       <p class="error-text">{{ locationError }}</p>
-      <button class="retry-btn" (click)="retryLocation()">🔄 Retry My Location</button>
+      <button type="button" class="retry-btn" (click)="retryLocation()">🔄 Retry My Location</button>
       <div class="manual-input">
-        <p>Enter Manual Location:</p>
+        <p>Location not right? Enter your city/area:</p>
         <div class="input-group">
-          <input #latInput placeholder="Lat (e.g. 12.9141)" value="12.9141">
-          <input #lngInput placeholder="Lng (e.g. 74.8560)" value="74.8560">
-          <button (click)="setManualLocation(latInput.value, lngInput.value)">Set</button>
+          <input #addrInput placeholder="e.g. Mangalore, KP"
+            (keydown.enter)="$event.preventDefault(); setLocationByAddress(addrInput.value)">
+          <button type="button" (click)="setLocationByAddress(addrInput.value)">Find</button>
         </div>
       </div>
     </div>
@@ -23,21 +23,46 @@
       <small>✅ Location set: {{userLocation.lat | number:'1.4-4'}}, {{userLocation.lng | number:'1.4-4'}}
         <span *ngIf="userLocation.accuracy">(Accuracy: ±{{userLocation.accuracy | number:'1.0-0'}}m)</span>
       </small>
-      <button class="retry-btn small" (click)="editLocation()">📍 Change Location</button>
+      <div class="warning-box" *ngIf="userLocation.accuracy && userLocation.accuracy > 2000">
+        ⚠️ <strong>Warning:</strong> Location is imprecise (±{{userLocation.accuracy/1000 | number:'1.0-0'}}km). Likely
+        using ISP location (Bengaluru?). <br>
+        <button type="button" class="link-btn" (click)="editLocation()">Click here to set your actual city</button>
+      </div>
+      <button type="button" class="retry-btn small" (click)="editLocation()"
+        *ngIf="!userLocation.accuracy || userLocation.accuracy <= 2000">📍 Change Location</button>
     </div>
   </header>
 
   <main>
-    <app-mood-selector (moodSelected)="onMoodSelected($event)"></app-mood-selector>
+    <div class="planner-context">
+      <div class="context-group">
+        <label>I'm with:</label>
+        <select [(ngModel)]="context.company">
+          <option value="solo">Myself</option>
+          <option value="date">Date</option>
+          <option value="friends">Friends</option>
+          <option value="family">Family</option>
+        </select>
+      </div>
+      <div class="context-group">
+        <label>Time:</label>
+        <select [(ngModel)]="context.timeOfDay">
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="evening">Evening</option>
+          <option value="night">Late Night</option>
+        </select>
+      </div>
+    </div>
 
-    <div *ngIf="selectedMood" class="results-section">
+    <app-mood-selector [selectedMoodId]="selectedMood?.id" (moodSelected)="onMoodSelected($event)"></app-mood-selector>
+
+    <div *ngIf="currentPlan" class="results-section">
       <app-filters [showPriceFilter]="showPriceFilter" [filters]="currentFilters"
         (filterChange)="onFiltersChanged($event)">
       </app-filters>
 
-      <app-place-list [places]="displayedPlaces" [isLoading]="isLoading" [hasSearched]="!!selectedMood"
-        [error]="searchError">
-      </app-place-list>
+      <app-itinerary [title]="currentPlan.title" [steps]="itinerarySteps"></app-itinerary>
     </div>
   </main>
 </div>

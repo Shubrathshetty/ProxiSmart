@@ -1,0 +1,30 @@
+<div class="itinerary-container">
+    <div class="itinerary-header">
+        <h2 class="title">{{ title }}</h2>
+        <button class="share-btn" (click)="sharePlan()">📤 Share</button>
+    </div>
+    <div class="timeline">
+        <div *ngFor="let stepRes of steps; let i = index" class="step-card">
+            <div class="step-badge">Phase {{ i + 1 }}</div>
+            <h3 class="step-title">{{ stepRes.step.label }}</h3>
+            <p class="step-description">{{ stepRes.step.description }}</p>
+
+            <div *ngIf="stepRes.isLoading" class="step-loading">
+                <div class="mini-spinner"></div> Finding best spots...
+            </div>
+
+            <div *ngIf="stepRes.error" class="step-error">
+                ⚠️ {{ stepRes.error }}
+            </div>
+
+            <div class="step-places" *ngIf="!stepRes.isLoading && stepRes.places.length > 0">
+                <!-- Show top 3 places horizontally or limited list -->
+                <app-place-card *ngFor="let place of stepRes.places.slice(0, 3)" [place]="place"></app-place-card>
+            </div>
+
+            <div *ngIf="!stepRes.isLoading && !stepRes.error && stepRes.places.length === 0" class="step-empty">
+                No places found for this step.
+            </div>
+        </div>
+    </div>
+</div>
