@@ -18,14 +18,13 @@ export interface FilterState {
 })
 export class Filters {
   @Input() showPriceFilter: boolean = false;
-  @Output() filterChange = new EventEmitter<FilterState>();
-
-  filters: FilterState = {
+  @Input() filters: FilterState = {
     openNow: false,
-    minRating: 0,  // No rating filter by default
+    minRating: 0,
     priceLevel: null,
     sortBy: 'distance'
   };
+  @Output() filterChange = new EventEmitter<FilterState>();
 
   onFilterChange() {
     this.filterChange.emit(this.filters);

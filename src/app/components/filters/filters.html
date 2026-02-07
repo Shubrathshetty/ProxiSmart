@@ -9,11 +9,11 @@
     <div class="filter-item">
         <span class="label-text">Min Rating:</span>
         <select [(ngModel)]="filters.minRating" (change)="onFilterChange()">
-            <option [value]="0">Any</option>
-            <option [value]="3.0">3.0+</option>
-            <option [value]="3.5">3.5+</option>
-            <option [value]="4.0">4.0+</option>
-            <option [value]="4.5">4.5+</option>
+            <option [ngValue]="0">Any</option>
+            <option [ngValue]="3.0">3.0+</option>
+            <option [ngValue]="3.5">3.5+</option>
+            <option [ngValue]="4.0">4.0+</option>
+            <option [ngValue]="4.5">4.5+</option>
         </select>
     </div>
 
@@ -22,9 +22,9 @@
         <span class="label-text">Price:</span>
         <select [(ngModel)]="filters.priceLevel" (change)="onFilterChange()">
             <option [ngValue]="null">Any</option>
-            <option [value]="1">$</option>
-            <option [value]="2">$$</option>
-            <option [value]="3">$$$</option>
+            <option [ngValue]="1">$</option>
+            <option [ngValue]="2">$$</option>
+            <option [ngValue]="3">$$$</option>
         </select>
     </div>
 

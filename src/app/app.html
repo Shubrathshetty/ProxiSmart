@@ -9,17 +9,21 @@
 
     <div class="location-status" *ngIf="locationError && !userLocation">
       <p class="error-text">{{ locationError }}</p>
+      <button class="retry-btn" (click)="retryLocation()">🔄 Retry My Location</button>
       <div class="manual-input">
         <p>Enter Manual Location:</p>
         <div class="input-group">
-          <input #latInput placeholder="Lat (e.g. 40.7128)" value="28.6139">
-          <input #lngInput placeholder="Lng (e.g. 77.2090)" value="77.2090">
+          <input #latInput placeholder="Lat (e.g. 12.9141)" value="12.9141">
+          <input #lngInput placeholder="Lng (e.g. 74.8560)" value="74.8560">
           <button (click)="setManualLocation(latInput.value, lngInput.value)">Set</button>
         </div>
       </div>
     </div>
     <div class="location-status success" *ngIf="userLocation">
-      <small>✅ Location set</small>
+      <small>✅ Location set: {{userLocation.lat | number:'1.4-4'}}, {{userLocation.lng | number:'1.4-4'}}
+        <span *ngIf="userLocation.accuracy">(Accuracy: ±{{userLocation.accuracy | number:'1.0-0'}}m)</span>
+      </small>
+      <button class="retry-btn small" (click)="editLocation()">📍 Change Location</button>
     </div>
   </header>
 
@@ -27,7 +31,8 @@
     <app-mood-selector (moodSelected)="onMoodSelected($event)"></app-mood-selector>
 
     <div *ngIf="selectedMood" class="results-section">
-      <app-filters [showPriceFilter]="showPriceFilter" (filterChange)="onFiltersChanged($event)">
+      <app-filters [showPriceFilter]="showPriceFilter" [filters]="currentFilters"
+        (filterChange)="onFiltersChanged($event)">
       </app-filters>
 
       <app-place-list [places]="displayedPlaces" [isLoading]="isLoading" [hasSearched]="!!selectedMood"

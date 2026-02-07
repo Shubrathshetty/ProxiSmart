@@ -15,7 +15,7 @@ import { Mood } from './services/mood.service';
   styleUrl: './app.css'
 })
 export class App implements OnInit {
-  userLocation: { lat: number, lng: number } | null = null;
+  userLocation: { lat: number, lng: number, accuracy?: number } | null = null;
   locationError: string | null = null;
 
   selectedMood: Mood | null = null;
@@ -48,8 +48,12 @@ export class App implements OnInit {
   private initializeApp() {
     // Just try to get location in the background - don't block UI
     this.locationService.getCurrentPosition()
-      .then(coords => {
-        this.userLocation = coords;
+      .then((coords: any) => {
+        this.userLocation = {
+          lat: coords.latitude,
+          lng: coords.longitude,
+          accuracy: coords.accuracy
+        };
       })
       .catch(err => {
         console.error('Location error', err);
@@ -70,16 +74,30 @@ export class App implements OnInit {
     this.allPlaces = [];
     this.displayedPlaces = [];
 
-    // Reset filters partially or keep them? 
-    // Requirement filters applied AFTER response.
-    // Keeping current filters is fine.
+    // Reset filters to default on new search
+    this.currentFilters = {
+      openNow: false,
+      minRating: 0,
+      priceLevel: null,
+      sortBy: 'distance'
+    };
+
+    // Also reset the child component via a hack or just rely on manual update?
+    // We can't easily reset child component state without ViewChild.
+    // For now, let's just update our local state and hope user adjusts if needed.
+    // Ideally we should bind [filters] input to child.
 
     this.placesService.searchNearby(this.userLocation, mood)
       .then(results => {
         this.ngZone.run(() => {
-          this.allPlaces = results;
-          this.applyFilters();
-          this.isLoading = false;
+          console.log('Results received:', results.length);
+          // Force next tick to ensure clean render
+          setTimeout(() => {
+            this.allPlaces = results;
+            this.applyFilters();
+            this.isLoading = false;
+            this.cdr.detectChanges();
+          }, 0);
         });
       })
       .catch(err => {
@@ -87,6 +105,7 @@ export class App implements OnInit {
           console.error(err);
           this.searchError = 'Failed to find places. Please check the API Key or try again.';
           this.isLoading = false;
+          this.cdr.detectChanges();
         });
       });
   }
@@ -131,13 +150,51 @@ export class App implements OnInit {
     this.cdr.detectChanges();  // Force UI update
   }
 
-  setManualLocation(latStr: string, lngStr: string) {
-    const lat = parseFloat(latStr);
-    const lng = parseFloat(lngStr);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      this.userLocation = { lat, lng };
-      this.locationError = null;
-      this.locationService.setManualLocation(lat, lng);
-    }
+  editLocation() {
+    // Preserve current location in inputs if we bound them, but for now just clear
+    this.userLocation = null;
+    this.locationError = 'Please enter your specific location manually.';
+  }
+
+  retryLocation() {
+    this.isLoading = true;
+    this.locationError = null;
+
+    this.locationService.getCurrentPosition()
+      .then((coords: any) => {
+        this.userLocation = {
+          lat: coords.latitude,
+          lng: coords.longitude,
+          accuracy: coords.accuracy
+        };
+        this.isLoading = false;
+      })
+      .catch(err => {
+        console.error('Location retry error', err);
+        this.locationError = 'Could not get your location. Please use manual location below.';
+        this.isLoading = false;
+      });
+  }
+
+  setLocationByAddress(address: string) {
+    if (!address) return;
+
+    this.isLoading = true;
+    this.locationError = null;
+
+    this.placesService.geocode(address)
+      .then(coords => {
+        this.userLocation = {
+          lat: coords.lat,
+          lng: coords.lng,
+          accuracy: 0 // Manual/Geocoded is considered precise
+        };
+        this.isLoading = false;
+      })
+      .catch(err => {
+        console.error('Geocoding error', err);
+        this.locationError = 'Could not find that location. Please try a different address.';
+        this.isLoading = false;
+      });
   }
 }

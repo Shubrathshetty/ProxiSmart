@@ -29,6 +29,29 @@ export class PlacesService {
         }
     }
 
+    geocode(address: string): Promise<{ lat: number, lng: number }> {
+        return new Promise((resolve, reject) => {
+            if (typeof google === 'undefined') {
+                reject('Google Maps API not loaded');
+                return;
+            }
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: address }, (results, status) => {
+                this.ngZone.run(() => {
+                    if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+                        const location = results[0].geometry.location;
+                        resolve({
+                            lat: location.lat(),
+                            lng: location.lng()
+                        });
+                    } else {
+                        reject(status);
+                    }
+                });
+            });
+        });
+    }
+
     searchNearby(location: { lat: number, lng: number }, mood: Mood): Promise<PlaceResult[]> {
         return new Promise((resolve, reject) => {
             if (typeof google === 'undefined') {
@@ -39,7 +62,7 @@ export class PlacesService {
 
             const request: google.maps.places.PlaceSearchRequest = {
                 location: new google.maps.LatLng(location.lat, location.lng),
-                radius: 2000, // 2km
+                radius: 5000, // 5km radius
                 type: mood.types[0],
             };
 
