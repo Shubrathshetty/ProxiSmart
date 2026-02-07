@@ -24,6 +24,7 @@ export class App implements OnInit {
 
   isLoading: boolean = false;
   searchError: string | null = null;
+  isInitializing: boolean = true;
 
   showPriceFilter: boolean = false;
   currentFilters: FilterState = {
@@ -39,14 +40,23 @@ export class App implements OnInit {
   ) { }
 
   ngOnInit() {
-    this.locationService.getCurrentPosition()
-      .then(coords => {
-        this.userLocation = coords;
-      })
-      .catch(err => {
-        console.error('Location error', err);
-        this.locationError = 'Could not get your location. Please enable location services.';
-      });
+    this.initializeApp();
+  }
+
+  private async initializeApp() {
+    try {
+      // Wait for Google Maps API to load
+      await (window as any).googleMapsReady;
+
+      // Then get location
+      const coords = await this.locationService.getCurrentPosition();
+      this.userLocation = coords;
+    } catch (err) {
+      console.error('Initialization error', err);
+      this.locationError = 'Could not get your location. Please enable location services.';
+    } finally {
+      this.isInitializing = false;
+    }
   }
 
   onMoodSelected(mood: Mood) {
