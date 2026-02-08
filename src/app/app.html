@@ -30,6 +30,8 @@
         using ISP location (Bengaluru?). <br>
         <button type="button" class="link-btn" (click)="editLocation()">Click here to set your actual city</button>
       </div>
+      <button type="button" class="retry-btn small" (click)="forceRefreshLocation()" style="margin-right: 8px;">🔄
+        Auto-Detect Location</button>
       <button type="button" class="retry-btn small" (click)="editLocation()"
         *ngIf="!userLocation.accuracy || userLocation.accuracy <= 2000">📍 Change Location</button>
     </div>
@@ -40,6 +42,10 @@
     <div style="margin-bottom: 20px;"></div>
 
     <app-mood-selector [selectedMoodId]="selectedMood?.id" (moodSelected)="onMoodSelected($event)"></app-mood-selector>
+
+    <div *ngIf="currentPlan && detectedAddress" class="search-location-banner">
+      🔍 Searching near: <strong>{{detectedAddress}}</strong>
+    </div>
 
     <div *ngIf="currentPlan" class="results-section">
       <app-filters [showPriceFilter]="showPriceFilter" [filters]="currentFilters"

@@ -149,31 +149,42 @@ export class App implements OnInit {
       });
   }
 
-  private fallbackToGoogleGeo() {
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      console.error('API Key not found for fallback');
-      this.locationError = 'Could not get precise location. Please enter manually.';
-      this.cdr.detectChanges();
-      return;
+  private async fallbackToGoogleGeo() {
+    try {
+      console.log('Trying Google Geo API (skipping - moving to IP)...');
+      // Skip Google Geo and go directly to IP-based location
+      this.fallbackToIPLocation();
+    } catch (err) {
+      console.error('Fallback failed, trying IP-based location...', err);
+      this.fallbackToIPLocation();
     }
+  }
 
-    this.locationService.getGoogleGeolocation(apiKey)
-      .then((coords: any) => {
-        console.log('Google Geo API Success:', coords);
+  private async fallbackToIPLocation() {
+    try {
+      console.log('Trying IP-based geolocation...');
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+
+      if (data.latitude && data.longitude) {
         this.userLocation = {
-          lat: coords.latitude,
-          lng: coords.longitude,
-          accuracy: coords.accuracy
+          lat: data.latitude,
+          lng: data.longitude,
+          accuracy: 5000 // City-level accuracy
         };
+        this.detectedAddress = `${data.city}, ${data.region}, ${data.country_name}`;
         this.saveLocation(this.userLocation);
+        this.locationError = '';
+        console.log('✅ IP-based location detected:', this.detectedAddress);
         this.cdr.detectChanges();
-      })
-      .catch(err => {
-        console.error('Google Geo API failed', err);
-        this.locationError = 'Could not get precise location. Please enter manually.';
-        this.cdr.detectChanges();
-      });
+      } else {
+        throw new Error('IP location data incomplete');
+      }
+    } catch (err) {
+      console.error('IP-based geolocation failed:', err);
+      this.locationError = 'Unable to detect your location automatically. Please enter your city manually.';
+      this.cdr.detectChanges();
+    }
   }
 
   private getApiKey(): string | null {
@@ -194,14 +205,24 @@ export class App implements OnInit {
 
   onMoodSelected(mood: Mood) {
     if (!this.userLocation) {
-      alert('We need your location to find places!');
+      alert('Please set your location first!');
       return;
     }
 
-    this.selectedMood = mood;
-    this.showPriceFilter = mood.id === 'budget';
+    console.log('=== SEARCH DEBUG ===');
+    console.log('Mood:', mood.label);
+    console.log('Searching near coordinates:', this.userLocation);
+    console.log('Detected address:', this.detectedAddress || 'Unknown');
+    console.log('===================');
 
-    // Generate Plan
+    // Show visual confirmation of search location
+    const searchMsg = this.detectedAddress
+      ? `Searching near: ${this.detectedAddress}`
+      : `Searching near: ${this.userLocation.lat.toFixed(2)}, ${this.userLocation.lng.toFixed(2)}`;
+
+    console.log('🔍', searchMsg);
+
+    this.selectedMood = mood;
     this.currentPlan = this.plannerService.generatePlan(mood, this.context);
     console.log('Generated Plan:', this.currentPlan);
 
@@ -339,12 +360,13 @@ export class App implements OnInit {
   editLocation() {
     // Preserve current location in inputs if we bound them, but for now just clear
     this.userLocation = null;
+    this.detectedAddress = '';
     this.locationError = 'Please enter your specific location manually.';
   }
 
   retryLocation() {
     this.isLoading = true;
-    this.locationError = null;
+    this.locationError = '';
 
     this.locationService.getCurrentPosition()
       .then((coords: any) => {
@@ -354,6 +376,7 @@ export class App implements OnInit {
           accuracy: coords.accuracy
         };
         this.saveLocation(this.userLocation);
+        this.updateDetectedAddress();
         this.isLoading = false;
 
         // Auto-refresh results if mood is selected
@@ -368,11 +391,24 @@ export class App implements OnInit {
       });
   }
 
+  forceRefreshLocation() {
+    console.log('🔄 Forcing location refresh...');
+    // Clear saved location
+    localStorage.removeItem('user_location');
+    this.userLocation = null;
+    this.detectedAddress = '';
+    this.locationError = '';
+
+    // Trigger IP-based detection immediately
+    this.isLoading = true;
+    this.fallbackToIPLocation();
+  }
+
   setLocationByAddress(address: string) {
     if (!address) return;
 
     this.isLoading = true;
-    this.locationError = null;
+    this.locationError = '';
 
     this.placesService.geocode(address)
       .then(coords => {
@@ -405,6 +441,7 @@ export class App implements OnInit {
     if (saved) {
       try {
         this.userLocation = JSON.parse(saved);
+        this.updateDetectedAddress();
         return true;
       } catch (e) {
         console.error('Failed to parse saved location', e);

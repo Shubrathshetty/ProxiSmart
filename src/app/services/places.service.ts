@@ -18,16 +18,7 @@ export interface PlaceResult {
     providedIn: 'root'
 })
 export class PlacesService {
-    private service: google.maps.places.PlacesService | null = null;
-
     constructor(private ngZone: NgZone) { }
-
-    private initService(): void {
-        if (!this.service && typeof google !== 'undefined') {
-            const mapDiv = document.createElement('div');
-            this.service = new google.maps.places.PlacesService(mapDiv as HTMLDivElement);
-        }
-    }
 
     geocode(address: string): Promise<{ lat: number, lng: number }> {
         return new Promise((resolve, reject) => {
@@ -72,64 +63,83 @@ export class PlacesService {
         });
     }
 
-    searchByType(location: { lat: number, lng: number }, type: string, keyword?: string, openNow: boolean = false): Promise<PlaceResult[]> {
-        return new Promise((resolve, reject) => {
-            if (typeof google === 'undefined') {
-                reject('Google Maps API not loaded');
-                return;
+    async searchByType(location: { lat: number, lng: number }, type: string, keyword?: string, openNow: boolean = false): Promise<PlaceResult[]> {
+        if (typeof google === 'undefined') {
+            throw new Error('Google Maps API not loaded');
+        }
+
+        const request: any = {
+            locationRestriction: {
+                center: { lat: location.lat, lng: location.lng },
+                radius: 15000
+            },
+            includedTypes: [type],
+            maxResultCount: 20,
+            rankPreference: 'DISTANCE',
+            languageCode: 'en'
+        };
+
+        if (keyword) {
+            request.textQuery = keyword;
+        }
+
+        if (openNow) {
+            request.isOpenNow = true;
+        }
+
+        console.log(`PlacesService (New API): Searching type=${type}, keyword=${keyword}, openNow=${openNow}`);
+
+        try {
+            // Use new Place.searchNearby API
+            const { places } = await google.maps.places.Place.searchNearby(request);
+
+            console.log(`PlacesService (New API): Found ${places?.length || 0} places`);
+
+            if (!places || places.length === 0) {
+                return [];
             }
-            this.initService();
 
-            const request: google.maps.places.PlaceSearchRequest = {
-                location: new google.maps.LatLng(location.lat, location.lng),
-                radius: 15000,
-                type: type,
-                openNow: openNow, // Pass to API
-            };
+            return await this.ngZone.run(async () => {
+                const mappedResults: PlaceResult[] = [];
 
-            if (keyword) {
-                request.keyword = keyword;
-            }
+                for (const place of places) {
+                    const placeLoc = {
+                        lat: place.location!.lat(),
+                        lng: place.location!.lng()
+                    };
 
-            console.log(`PlacesService: Searching type=${type}, keyword=${keyword}, openNow=${openNow}`);
-
-            this.service!.nearbySearch(request, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
-                this.ngZone.run(() => {
-                    console.log(`PlacesService: Result status=${status}, count=${results?.length}`);
-                    if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-                        const mappedResults: PlaceResult[] = results.map((place: google.maps.places.PlaceResult) => {
-                            const placeLoc = {
-                                lat: place.geometry!.location!.lat(),
-                                lng: place.geometry!.location!.lng()
-                            };
-
-
-                            // Robustly check open status (handle function or boolean property)
-                            // If we strictly requested openNow from server, trust it (force true)
-                            const openStatus = openNow ? true : (place.opening_hours?.isOpen
-                                ? place.opening_hours.isOpen()
-                                : (place.opening_hours as any)?.open_now);
-
-                            return {
-                                placeId: place.place_id!,
-                                name: place.name!,
-                                location: placeLoc,
-                                rating: place.rating,
-                                isOpen: openStatus, // Allow undefined
-                                priceLevel: place.price_level,
-                                vicinity: place.vicinity,
-                                distance: this.calculateDistance(location.lat, location.lng, placeLoc.lat, placeLoc.lng)
-                            };
-                        });
-                        resolve(mappedResults);
-                    } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                        resolve([]);
-                    } else {
-                        reject(status);
+                    // Robust open status extraction
+                    let openStatus: boolean | undefined;
+                    if (openNow) {
+                        openStatus = true; // Trust API filter
+                    } else if (place.isOpen) {
+                        try {
+                            const isOpenResult = place.isOpen();
+                            // Handle if it's a Promise or direct boolean
+                            openStatus = isOpenResult instanceof Promise ? await isOpenResult : isOpenResult;
+                        } catch (e) {
+                            openStatus = undefined;
+                        }
                     }
-                });
+
+                    mappedResults.push({
+                        placeId: place.id!,
+                        name: place.displayName || place.formattedAddress || 'Unknown',
+                        location: placeLoc,
+                        rating: place.rating ?? undefined,
+                        isOpen: openStatus,
+                        priceLevel: (place as any).priceLevel ?? undefined,
+                        vicinity: place.formattedAddress ?? undefined,
+                        distance: this.calculateDistance(location.lat, location.lng, placeLoc.lat, placeLoc.lng)
+                    });
+                }
+
+                return mappedResults;
             });
-        });
+        } catch (error) {
+            console.error('Place.searchNearby error:', error);
+            throw error;
+        }
     }
 
     searchNearby(location: { lat: number, lng: number }, mood: Mood): Promise<PlaceResult[]> {
