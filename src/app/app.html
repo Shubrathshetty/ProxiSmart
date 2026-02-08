@@ -20,7 +20,9 @@
       </div>
     </div>
     <div class="location-status success" *ngIf="userLocation">
-      <small>✅ Location set: {{userLocation.lat | number:'1.4-4'}}, {{userLocation.lng | number:'1.4-4'}}
+      <small *ngIf="detectedAddress">📍 <strong>{{detectedAddress}}</strong></small>
+      <small *ngIf="!detectedAddress">✅ Location set: {{userLocation.lat | number:'1.4-4'}}, {{userLocation.lng |
+        number:'1.4-4'}}
         <span *ngIf="userLocation.accuracy">(Accuracy: ±{{userLocation.accuracy | number:'1.0-0'}}m)</span>
       </small>
       <div class="warning-box" *ngIf="userLocation.accuracy && userLocation.accuracy > 2000">
@@ -34,26 +36,8 @@
   </header>
 
   <main>
-    <div class="planner-context">
-      <div class="context-group">
-        <label>I'm with:</label>
-        <select [(ngModel)]="context.company">
-          <option value="solo">Myself</option>
-          <option value="date">Date</option>
-          <option value="friends">Friends</option>
-          <option value="family">Family</option>
-        </select>
-      </div>
-      <div class="context-group">
-        <label>Time:</label>
-        <select [(ngModel)]="context.timeOfDay">
-          <option value="morning">Morning</option>
-          <option value="afternoon">Afternoon</option>
-          <option value="evening">Evening</option>
-          <option value="night">Late Night</option>
-        </select>
-      </div>
-    </div>
+    <!-- Context UI removed as per user request -->
+    <div style="margin-bottom: 20px;"></div>
 
     <app-mood-selector [selectedMoodId]="selectedMood?.id" (moodSelected)="onMoodSelected($event)"></app-mood-selector>
 

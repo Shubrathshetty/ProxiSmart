@@ -52,7 +52,27 @@ export class PlacesService {
         });
     }
 
-    searchByType(location: { lat: number, lng: number }, type: string, keyword?: string): Promise<PlaceResult[]> {
+    reverseGeocode(lat: number, lng: number): Promise<string> {
+        return new Promise((resolve, reject) => {
+            if (typeof google === 'undefined') {
+                reject('Google Maps API not loaded');
+                return;
+            }
+            const geocoder = new google.maps.Geocoder();
+            const latlng = { lat: lat, lng: lng };
+            geocoder.geocode({ location: latlng }, (results, status) => {
+                this.ngZone.run(() => {
+                    if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+                        resolve(results[0].formatted_address);
+                    } else {
+                        reject(status);
+                    }
+                });
+            });
+        });
+    }
+
+    searchByType(location: { lat: number, lng: number }, type: string, keyword?: string, openNow: boolean = false): Promise<PlaceResult[]> {
         return new Promise((resolve, reject) => {
             if (typeof google === 'undefined') {
                 reject('Google Maps API not loaded');
@@ -64,26 +84,38 @@ export class PlacesService {
                 location: new google.maps.LatLng(location.lat, location.lng),
                 radius: 15000,
                 type: type,
+                openNow: openNow, // Pass to API
             };
 
             if (keyword) {
                 request.keyword = keyword;
             }
 
+            console.log(`PlacesService: Searching type=${type}, keyword=${keyword}, openNow=${openNow}`);
+
             this.service!.nearbySearch(request, (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
                 this.ngZone.run(() => {
+                    console.log(`PlacesService: Result status=${status}, count=${results?.length}`);
                     if (status === google.maps.places.PlacesServiceStatus.OK && results) {
                         const mappedResults: PlaceResult[] = results.map((place: google.maps.places.PlaceResult) => {
                             const placeLoc = {
                                 lat: place.geometry!.location!.lat(),
                                 lng: place.geometry!.location!.lng()
                             };
+
+
+                            // Robustly check open status (handle function or boolean property)
+                            // If we strictly requested openNow from server, trust it (force true)
+                            const openStatus = openNow ? true : (place.opening_hours?.isOpen
+                                ? place.opening_hours.isOpen()
+                                : (place.opening_hours as any)?.open_now);
+
                             return {
                                 placeId: place.place_id!,
                                 name: place.name!,
                                 location: placeLoc,
                                 rating: place.rating,
-                                isOpen: place.opening_hours?.isOpen ? place.opening_hours.isOpen() : (place.opening_hours as any)?.open_now,
+                                isOpen: openStatus, // Allow undefined
                                 priceLevel: place.price_level,
                                 vicinity: place.vicinity,
                                 distance: this.calculateDistance(location.lat, location.lng, placeLoc.lat, placeLoc.lng)
@@ -107,7 +139,7 @@ export class PlacesService {
         return this.searchByType(location, mood.types[0], keyword);
     }
 
-    private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    public calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
         const R = 6371; // km
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLng = (lng2 - lng1) * Math.PI / 180;

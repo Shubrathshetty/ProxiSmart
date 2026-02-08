@@ -14,13 +14,14 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, MoodSelector, Filters, PlaceList, Itinerary],
+  imports: [CommonModule, FormsModule, MoodSelector, Filters, Itinerary],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit {
   userLocation: { lat: number, lng: number, accuracy?: number } | null = null;
-  locationError: string | null = null;
+  detectedAddress: string = '';
+  locationError: string = '';
 
   selectedMood: Mood | null = null;
   allPlaces: PlaceResult[] = [];
@@ -57,27 +58,138 @@ export class App implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.updateTimeOfDay();
     this.initializeApp();
+  }
+
+  private updateTimeOfDay() {
+    const hour = new Date().getHours();
+    if (hour < 12) this.context.timeOfDay = 'morning';
+    else if (hour < 17) this.context.timeOfDay = 'afternoon';
+    else if (hour < 20) this.context.timeOfDay = 'evening';
+    else this.context.timeOfDay = 'night';
+    console.log('Auto-detected time:', this.context.timeOfDay);
+  }
+
+  private updateDetectedAddress() {
+    if (!this.userLocation) return;
+    this.placesService.reverseGeocode(this.userLocation.lat, this.userLocation.lng)
+      .then(address => {
+        this.detectedAddress = address;
+        console.log('Detected address:', address);
+        this.cdr.detectChanges();
+      })
+      .catch(err => console.error('Reverse geocode failed:', err));
   }
 
   debugGeo: string = '';
 
   private initializeApp() {
-    // Just try to get location in the background - don't block UI
+    // 1. Try to load saved location for instant UI
+    if (this.loadLocation()) {
+      console.log('Loaded saved location');
+      // Continue to check GPS in background to see if we moved!
+    }
+
+    // 2. Try GPS (Browser or Google)
     this.locationService.getCurrentPosition()
       .then((coords: any) => {
+        const accuracy = coords.accuracy || 0;
+        this.debugGeo = `Lat: ${coords.latitude}, Lng: ${coords.longitude}, Acc: ${accuracy}m`;
+        console.log('Location success:', this.debugGeo);
+
+        // Strict Check: If accuracy > 5000m (5km), reject it (likely ISP)
+        // BUT if we have NO saved userLocation, we have to reject it.
+        // If we DO have userLocation, we just keep using it (don't overwrite with bad data).
+        if (accuracy > 5000) {
+          console.warn('Rejecting low accuracy location:', accuracy);
+          if (!this.userLocation) {
+            this.locationError = 'Low accuracy detected. Please enter your city manually.';
+            this.cdr.detectChanges();
+          }
+          // Fallback to Google Geo if needed and no saved location?
+          // Or if saved location is old?
+          // For now, if GPS is bad, we do nothing (keep saved).
+          // If no saved, we try Google fallback.
+          if (!this.userLocation) {
+            this.fallbackToGoogleGeo();
+          }
+          return;
+        }
+
+        // Check if we moved significantly (e.g. > 1km)
+        if (this.userLocation) {
+          const dist = this.placesService['calculateDistance'](
+            this.userLocation.lat, this.userLocation.lng,
+            coords.latitude, coords.longitude
+          );
+          if (dist < 1) {
+            console.log('Location hasn\'t changed significantly (<1km). Keeping saved.');
+            return;
+          }
+          console.log(`User moved ${dist.toFixed(1)}km. Updating location.`);
+        }
+
+        this.userLocation = {
+          lat: coords.latitude,
+          lng: coords.longitude,
+          accuracy: accuracy
+        };
+        this.saveLocation(this.userLocation);
+        this.updateDetectedAddress();
+        this.cdr.detectChanges();
+      })
+      .catch(err => {
+        console.error('Location error', err);
+        // If no saved location, try Google fallback
+        if (!this.userLocation) {
+          console.warn('Browser Geo failed. Falling back to Google Geo API...');
+          this.fallbackToGoogleGeo();
+        }
+      });
+  }
+
+  private fallbackToGoogleGeo() {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      console.error('API Key not found for fallback');
+      this.locationError = 'Could not get precise location. Please enter manually.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.locationService.getGoogleGeolocation(apiKey)
+      .then((coords: any) => {
+        console.log('Google Geo API Success:', coords);
         this.userLocation = {
           lat: coords.latitude,
           lng: coords.longitude,
           accuracy: coords.accuracy
         };
-        this.debugGeo = `Lat: ${coords.latitude}, Lng: ${coords.longitude}, Acc: ${coords.accuracy}m`;
-        console.log('Location success:', this.debugGeo);
+        this.saveLocation(this.userLocation);
+        this.cdr.detectChanges();
       })
       .catch(err => {
-        console.error('Location error', err);
-        this.locationError = 'Could not get your location. Please use manual location below.';
+        console.error('Google Geo API failed', err);
+        this.locationError = 'Could not get precise location. Please enter manually.';
+        this.cdr.detectChanges();
       });
+  }
+
+  private getApiKey(): string | null {
+    const scripts = document.getElementsByTagName('script');
+    for (let i = 0; i < scripts.length; i++) {
+      const src = scripts[i].src;
+      if (src && src.includes('maps.googleapis.com/maps/api/js')) {
+        try {
+          const url = new URL(src);
+          return url.searchParams.get('key');
+        } catch (e) {
+          console.error('Error parsing script URL', e);
+        }
+      }
+    }
+    return null;
   }
 
   onMoodSelected(mood: Mood) {
@@ -104,8 +216,23 @@ export class App implements OnInit {
     this.cdr.detectChanges();
 
     // Fetch places for each step
+    this.refreshItinerary();
+  }
+
+  refreshItinerary() {
+    if (!this.currentPlan || !this.userLocation) return;
+
     this.currentPlan.steps.forEach((step, index) => {
-      this.placesService.searchByType(this.userLocation!, step.searchType, step.searchKeyword)
+      this.itinerarySteps[index].isLoading = true;
+      this.itinerarySteps[index].error = undefined;
+      this.cdr.detectChanges();
+
+      this.placesService.searchByType(
+        this.userLocation!,
+        step.searchType,
+        step.searchKeyword,
+        this.currentFilters.openNow // Server-side filter
+      )
         .then(results => {
           this.ngZone.run(() => {
             this.rawStepResults.set(index, results);
@@ -131,16 +258,23 @@ export class App implements OnInit {
     const raw = this.rawStepResults.get(index) || [];
     let temp = [...raw];
 
+    // Note: Open Now is handled server-side now, but we keep this check
+    // in case we have mixed results or need strict local filtering
     if (this.currentFilters.openNow) {
+      // If we requested OpenNow=true, results are already open.
+      // But if we cached 'All' and just switched on OpenNow client-side (not implemented),
+      // we would filter here.
+      // For now, trust the server or the logic in refreshItinerary.
       temp = temp.filter(p => p.isOpen === true);
     }
+
     if (this.currentFilters.minRating && this.currentFilters.minRating > 0) {
       temp = temp.filter(p => (p.rating || 0) >= this.currentFilters.minRating);
     }
     if (this.currentFilters.priceLevel !== null && this.showPriceFilter) {
       temp = temp.filter(p => p.priceLevel === this.currentFilters.priceLevel);
     }
-    // Sort logic 
+    // Sort logic
     if (this.currentFilters.sortBy === 'distance') {
       temp.sort((a, b) => (a.distance || 0) - (b.distance || 0));
     } else if (this.currentFilters.sortBy === 'rating') {
@@ -153,9 +287,17 @@ export class App implements OnInit {
   }
 
   onFiltersChanged(filters: FilterState) {
+    const openNowChanged = filters.openNow !== this.currentFilters.openNow;
     this.currentFilters = filters;
+
     if (this.currentPlan) {
-      this.filterItinerary();
+      if (openNowChanged) {
+        // If Open Now toggled, we MUST re-fetch from server to get accurate status
+        this.refreshItinerary();
+      } else {
+        // Otherwise just local filter
+        this.filterItinerary();
+      }
     }
   }
 
@@ -211,6 +353,7 @@ export class App implements OnInit {
           lng: coords.longitude,
           accuracy: coords.accuracy
         };
+        this.saveLocation(this.userLocation);
         this.isLoading = false;
 
         // Auto-refresh results if mood is selected
@@ -238,6 +381,7 @@ export class App implements OnInit {
           lng: coords.lng,
           accuracy: 0 // Manual/Geocoded is considered precise
         };
+        this.saveLocation(this.userLocation);
         this.isLoading = false;
 
         // Auto-refresh results if mood is selected
@@ -250,5 +394,23 @@ export class App implements OnInit {
         this.locationError = 'Could not find that location. Please try a different address.';
         this.isLoading = false;
       });
+  }
+
+  saveLocation(loc: { lat: number, lng: number, accuracy?: number }) {
+    localStorage.setItem('user_location', JSON.stringify(loc));
+  }
+
+  loadLocation(): boolean {
+    const saved = localStorage.getItem('user_location');
+    if (saved) {
+      try {
+        this.userLocation = JSON.parse(saved);
+        return true;
+      } catch (e) {
+        console.error('Failed to parse saved location', e);
+        return false;
+      }
+    }
+    return false;
   }
 }

@@ -46,4 +46,46 @@ export class LocationService {
         const coords = { lat, lng };
         this.currentLocationSubject.next(coords);
     }
+
+    getGoogleGeolocation(apiKey: string): Promise<GeolocationCoordinates> {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const response = await fetch(`https://www.googleapis.com/geolocation/v1/geolocate?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        considerIp: true // Use WiFi/Cell + IP for best result
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Google Geo API Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (data.location) {
+                    // Start construction of GeolocationCoordinates-like object
+                    // Note: We only get lat/lng/accuracy from this API.
+                    // We mock the other properties to satisfy the interface if needed,
+                    // or just return the relevant parts.
+                    const coords: any = {
+                        latitude: data.location.lat,
+                        longitude: data.location.lng,
+                        accuracy: data.accuracy,
+                        altitude: null,
+                        altitudeAccuracy: null,
+                        heading: null,
+                        speed: null
+                    };
+                    resolve(coords);
+                } else {
+                    reject('No location found in Google API response');
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
 }

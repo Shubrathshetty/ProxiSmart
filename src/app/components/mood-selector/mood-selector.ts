@@ -12,7 +12,7 @@ import { Mood, MoodService } from '../../services/mood.service';
 export class MoodSelector {
   moods: Mood[] = [];
   @Output() moodSelected = new EventEmitter<Mood>();
-  @Input() selectedMoodId: string | null = null;
+  @Input() selectedMoodId: string | null | undefined = null;
 
   constructor(private moodService: MoodService) {
     this.moods = this.moodService.getMoods();
